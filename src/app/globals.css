@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(96, 165, 250, 0.24), transparent 34rem),
+    linear-gradient(180deg, #101723 0%, #090b12 42%);
+  color: #f8fafc;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+video {
+  background: #05070d;
+}
+
+@layer components {
+  .panel {
+    @apply rounded-2xl border border-border bg-panel p-5 shadow-[0_24px_72px_rgba(0,0,0,0.28)];
+  }
+
+  .table-panel {
+    @apply overflow-hidden rounded-2xl border border-border bg-panel;
+  }
+
+  .field {
+    @apply grid gap-2 text-sm text-slate-200;
+  }
+
+  .input {
+    @apply min-h-11 rounded-xl border border-border bg-[#0e1420] px-3 py-2 text-sm text-slate-50 outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/20;
+  }
+
+  .btn {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-panel-warm;
+  }
+
+  .btn-primary {
+    @apply border-accent bg-accent text-[#06101d] hover:bg-accent/90;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-slate-200;
+  }
+
+  .status-pill {
+    @apply rounded-full border border-border px-2.5 py-1 text-xs font-semibold text-slate-300;
+  }
+}

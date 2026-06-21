@@ -1,0 +1,245 @@
+import Link from "next/link";
+import { listCategories, listModelOutputs, listProvidersWithModels, listTestCases } from "@/lib/repositories/leaderboard";
+import { formatScore } from "@/lib/scoring";
+
+type SearchParams = Promise<{
+  categories?: string;
+  models?: string;
+  case?: string;
+}>;
+
+export default async function ComparePage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const selectedCategoryIds = splitParam(params.categories);
+  const selectedModelIds = splitParam(params.models);
+
+  const [categories, providers, testCaseList] = await Promise.all([
+    listCategories(),
+    listProvidersWithModels(),
+    listTestCases({ categoryIds: selectedCategoryIds }),
+  ]);
+
+  const activeCase = testCaseList.find((item) => item.id === params.case) ?? testCaseList[0];
+  const outputs = activeCase
+    ? await listModelOutputs({
+        testCaseId: activeCase.id,
+        modelIds: selectedModelIds,
+      })
+    : [];
+
+  return (
+    <div className="grid gap-6">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">Compare</p>
+          <h1 className="m-0 text-3xl font-semibold tracking-normal">Compare model video outputs</h1>
+        </div>
+        <Link href="/admin" className="btn btn-primary">
+          New test case
+        </Link>
+      </header>
+
+      <section className="panel grid gap-4">
+        <FilterGroup title="Categories">
+          <FilterLink label="All" active={selectedCategoryIds.length === 0} params={{ models: params.models }} />
+          {categories.map((category) => (
+            <FilterLink
+              key={category.id}
+              label={category.name}
+              active={selectedCategoryIds.includes(category.id)}
+              params={{
+                categories: toggle(selectedCategoryIds, category.id),
+                models: params.models,
+              }}
+            />
+          ))}
+        </FilterGroup>
+
+        <div className="grid gap-3">
+          <p className="text-sm font-semibold text-slate-300">Providers / Models</p>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {providers.map((provider) => (
+              <div key={provider.id} className="rounded-2xl border border-border bg-[#0e1420] p-3">
+                <p className="mb-2 text-sm font-semibold">{provider.name}</p>
+                <div className="flex flex-wrap gap-2">
+                  {provider.models.map((model) => (
+                    <FilterLink
+                      key={model.id}
+                      label={`${model.name} ${model.version}`}
+                      active={selectedModelIds.includes(model.id)}
+                      params={{
+                        categories: params.categories,
+                        models: toggle(selectedModelIds, model.id),
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="panel grid content-start gap-3">
+          <p className="text-sm font-semibold text-slate-300">Test cases</p>
+          {testCaseList.map((testCase) => (
+            <Link
+              key={testCase.id}
+              href={{
+                pathname: "/compare",
+                query: {
+                  ...(params.categories ? { categories: params.categories } : {}),
+                  ...(params.models ? { models: params.models } : {}),
+                  case: testCase.id,
+                },
+              }}
+              className={`rounded-2xl border p-3 text-left transition ${
+                testCase.id === activeCase?.id
+                  ? "border-accent bg-accent/10"
+                  : "border-border bg-[#0e1420] hover:border-accent/70"
+              }`}
+            >
+              <strong className="block text-sm">{testCase.title}</strong>
+              <span className="mt-2 flex flex-wrap gap-2 text-xs text-muted">
+                <span>{testCase.category.name}</span>
+                <span>{testCase.assets.length} refs</span>
+                <span>{testCase.outputs.length} outputs</span>
+              </span>
+            </Link>
+          ))}
+        </aside>
+
+        <div className="grid gap-6">
+          {activeCase ? (
+            <>
+              <article className="panel">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
+                  {activeCase.category.name}
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold">{activeCase.title}</h2>
+                <p className="max-w-4xl text-slate-300">{activeCase.prompt}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {activeCase.assets.map((asset) => (
+                    <span key={asset.id} className="chip">
+                      {asset.filename}
+                    </span>
+                  ))}
+                </div>
+              </article>
+
+              <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+                {outputs.length ? (
+                  outputs.map((output) => (
+                    <article key={output.id} className="overflow-hidden rounded-2xl border border-border bg-panel">
+                      {output.videoAccessPath === "#" ? (
+                        <div className="grid aspect-video place-items-center bg-[#05070d] text-sm text-muted">
+                          Upload video to preview
+                        </div>
+                      ) : (
+                        <video className="aspect-video w-full" src={output.videoAccessPath} controls preload="metadata" />
+                      )}
+                      <div className="grid gap-3 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="m-0 text-sm font-semibold">{output.model.provider.name}</p>
+                            <p className="m-0 text-xs text-muted">
+                              {output.model.name} · {output.model.version}
+                            </p>
+                          </div>
+                          <strong className="font-mono text-2xl text-accent">{formatScore(output.scoreOverall)}</strong>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-border-soft">
+                          <div className="h-full bg-accent" style={{ width: `${output.scoreOverall * 10}%` }} />
+                        </div>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <div className="panel lg:col-span-2">
+                    <p className="text-slate-300">No outputs match the selected filters yet.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="table-panel">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
+                    <tr>
+                      <th className="p-4">Rank</th>
+                      <th className="p-4">Provider</th>
+                      <th className="p-4">Model</th>
+                      <th className="p-4">Overall</th>
+                      <th className="p-4">Prompt</th>
+                      <th className="p-4">Reference</th>
+                      <th className="p-4">Motion</th>
+                      <th className="p-4">Audio</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {outputs.map((output, index) => (
+                      <tr key={output.id} className="border-t border-border-soft">
+                        <td className="p-4 font-mono">{index + 1}</td>
+                        <td className="p-4">{output.model.provider.name}</td>
+                        <td className="p-4">{output.model.name}</td>
+                        <td className="p-4 font-semibold text-accent">{formatScore(output.scoreOverall)}</td>
+                        <td className="p-4">{formatScore(output.scorePromptMatch)}</td>
+                        <td className="p-4">{formatScore(output.scoreReference)}</td>
+                        <td className="p-4">{formatScore(output.scoreMotion)}</td>
+                        <td className="p-4">{formatScore(output.scoreAudioSync)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <div className="panel">
+              <p className="text-slate-300">Create a test case to start comparing outputs.</p>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-3">
+      <p className="text-sm font-semibold text-slate-300">{title}</p>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
+function FilterLink({
+  label,
+  active,
+  params,
+}: {
+  label: string;
+  active: boolean;
+  params: Record<string, string | undefined>;
+}) {
+  const query = Object.fromEntries(Object.entries(params).filter(([, value]) => value));
+  return (
+    <Link
+      href={{ pathname: "/compare", query }}
+      className={`chip ${active ? "border-accent bg-accent text-[#06101d]" : "bg-[#0e1420] hover:border-accent"}`}
+    >
+      {label}
+    </Link>
+  );
+}
+
+function splitParam(value?: string) {
+  return value ? value.split(",").filter(Boolean) : [];
+}
+
+function toggle(values: string[], value: string) {
+  const next = values.includes(value)
+    ? values.filter((item) => item !== value)
+    : [...values, value];
+  return next.length ? next.join(",") : undefined;
+}
