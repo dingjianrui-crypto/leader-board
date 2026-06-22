@@ -35,7 +35,7 @@ video {
   }
 
   .table-panel {
-    @apply overflow-hidden rounded-2xl border border-border bg-panel;
+    @apply overflow-x-auto rounded-2xl border border-border bg-panel;
   }
 
   .field {

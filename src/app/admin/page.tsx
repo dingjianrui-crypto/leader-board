@@ -54,7 +54,7 @@ export default async function AdminPage() {
         </form>
 
         <div className="table-panel">
-          <table className="w-full border-collapse text-left text-sm">
+          <table className="min-w-[760px] w-full border-collapse text-left text-sm">
             <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
               <tr>
                 <th className="p-4">Category</th>
@@ -74,11 +74,11 @@ export default async function AdminPage() {
                       <form action={deleteCategoryAction}>
                         <input type="hidden" name="categoryId" value={category.id} />
                         <button className="btn border-rose-400/40 text-rose-200 hover:bg-rose-500/10" type="submit">
-                          Delete category
+                          Delete
                         </button>
                       </form>
                     ) : (
-                      <span className="status-pill text-muted">Contains test cases</span>
+                      <span className="status-pill text-muted">Delete</span>
                     )}
                   </td>
                 </tr>
@@ -125,7 +125,7 @@ export default async function AdminPage() {
         </form>
 
         <div className="table-panel">
-          <table className="w-full border-collapse text-left text-sm">
+          <table className="min-w-[920px] w-full border-collapse text-left text-sm">
             <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
               <tr>
                 <th className="p-4">Test case</th>
@@ -152,7 +152,7 @@ export default async function AdminPage() {
                     <form action={deleteTestCaseAction}>
                       <input type="hidden" name="testCaseId" value={testCase.id} />
                       <button className="btn border-rose-400/40 text-rose-200 hover:bg-rose-500/10" type="submit">
-                        Delete test case
+                        Delete
                       </button>
                     </form>
                   </td>
@@ -204,7 +204,7 @@ export default async function AdminPage() {
         </form>
 
         <div className="table-panel">
-          <table className="w-full border-collapse text-left text-sm">
+          <table className="min-w-[1180px] w-full border-collapse text-left text-sm">
             <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
               <tr>
                 <th className="p-4">Output</th>
@@ -235,7 +235,7 @@ export default async function AdminPage() {
                     <form action={deleteModelOutputAction}>
                       <input type="hidden" name="outputId" value={output.id} />
                       <button className="btn border-rose-400/40 text-rose-200 hover:bg-rose-500/10" type="submit">
-                        Delete output
+                        Delete
                       </button>
                     </form>
                   </td>

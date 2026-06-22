@@ -34,7 +34,8 @@ export async function POST(request: NextRequest) {
     }
     validateUpload(file, outputVideoExtensions);
 
-    const stored = await storage.save({
+    const storageAdapter = await storage;
+    const stored = await storageAdapter.save({
       scope: "model-output",
       ownerId: `${input.testCaseId}-${input.modelId}`,
       file,
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
       }
       return NextResponse.json({ id }, { status: 201 });
     } catch (error) {
-      await storage.delete(stored.storageKey);
+      await storageAdapter.delete(stored.storageKey);
       throw error;
     }
   } catch (error) {

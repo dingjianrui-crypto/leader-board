@@ -15,11 +15,19 @@ export type SaveFileInput = {
   file: File;
 };
 
+export type OpenFileOptions = {
+  range?: {
+    start: number;
+    end: number;
+  };
+};
+
 export interface StorageAdapter {
   save(input: SaveFileInput): Promise<StoredFileRef>;
-  open(storageKey: string): Promise<{
+  open(storageKey: string, options?: OpenFileOptions): Promise<{
     stream: ReadableStream;
     sizeBytes: number;
+    contentLength: number;
   }>;
   delete(storageKey: string): Promise<void>;
 }

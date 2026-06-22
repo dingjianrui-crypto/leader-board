@@ -1,19 +1,10 @@
+import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { UPLOAD_ROOT } from "@/lib/config";
-import { createId } from "@/lib/ids";
+import { createStorageKey } from "./keys";
+import { nodeReadableToWebStream } from "./streams";
 import type { SaveFileInput, StorageAdapter, StoredFileRef } from "./types";
-
-function safeName(filename: string) {
-  const extension = filename.split(".").pop();
-  const base = filename
-    .replace(/\.[^/.]+$/, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-  return `${base || "file"}-${createId("file")}${extension ? `.${extension}` : ""}`;
-}
 
 function toDiskPath(storageKey: string) {
   const normalized = path.normalize(storageKey);
@@ -25,10 +16,7 @@ function toDiskPath(storageKey: string) {
 
 export class LocalStorageAdapter implements StorageAdapter {
   async save(input: SaveFileInput): Promise<StoredFileRef> {
-    const scopeRoot =
-      input.scope === "test-case-asset" ? "test-case-assets" : "model-outputs";
-    const filename = safeName(input.file.name);
-    const storageKey = `${scopeRoot}/${input.ownerId}/${filename}`;
+    const storageKey = createStorageKey(input);
     const diskPath = toDiskPath(storageKey);
 
     await fs.mkdir(path.dirname(diskPath), { recursive: true });
@@ -45,13 +33,16 @@ export class LocalStorageAdapter implements StorageAdapter {
     };
   }
 
-  async open(storageKey: string) {
+  async open(storageKey: string, options?: { range?: { start: number; end: number } }) {
     const diskPath = toDiskPath(storageKey);
-    const file = await fs.open(diskPath, "r");
-    const stat = await file.stat();
+    const stat = await fs.stat(diskPath);
+    const stream = createReadStream(diskPath, options?.range);
     return {
-      stream: file.readableWebStream() as ReadableStream,
+      stream: nodeReadableToWebStream(stream),
       sizeBytes: stat.size,
+      contentLength: options?.range
+        ? options.range.end - options.range.start + 1
+        : stat.size,
     };
   }
 

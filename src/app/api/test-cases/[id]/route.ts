@@ -12,7 +12,8 @@ export async function DELETE(
   try {
     const { id } = await params;
     const storageKeys = await deleteTestCase(id);
-    await Promise.all(storageKeys.map((storageKey) => storage.delete(storageKey)));
+    const storageAdapter = await storage;
+    await Promise.all(storageKeys.map((storageKey) => storageAdapter.delete(storageKey)));
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     return jsonError(error);

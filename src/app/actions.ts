@@ -98,10 +98,11 @@ export async function createTestCaseAction(formData: FormData) {
     description: getString(formData, "description"),
   });
   const testCaseId = await createTestCase(input);
+  const storageAdapter = await storage;
 
   for (const file of getFiles(formData, "assets")) {
     validateUpload(file, referenceExtensions);
-    const stored = await storage.save({
+    const stored = await storageAdapter.save({
       scope: "test-case-asset",
       ownerId: testCaseId,
       file,
@@ -118,7 +119,7 @@ export async function createTestCaseAction(formData: FormData) {
         accessPath: stored.accessPath,
       });
     } catch (error) {
-      await storage.delete(stored.storageKey);
+      await storageAdapter.delete(stored.storageKey);
       throw error;
     }
   }
@@ -130,7 +131,8 @@ export async function createTestCaseAction(formData: FormData) {
 
 export async function deleteTestCaseAction(formData: FormData) {
   const storageKeys = await deleteTestCase(getString(formData, "testCaseId"));
-  await Promise.all(storageKeys.map((storageKey) => storage.delete(storageKey)));
+  const storageAdapter = await storage;
+  await Promise.all(storageKeys.map((storageKey) => storageAdapter.delete(storageKey)));
   revalidatePath("/admin");
   revalidatePath("/compare");
 }
@@ -151,7 +153,8 @@ export async function createModelOutputAction(formData: FormData) {
   validateUpload(file, outputVideoExtensions);
 
   const ownerId = `${input.testCaseId}-${input.modelId}`;
-  const stored = await storage.save({
+  const storageAdapter = await storage;
+  const stored = await storageAdapter.save({
     scope: "model-output",
     ownerId,
     file,
@@ -179,7 +182,7 @@ export async function createModelOutputAction(formData: FormData) {
       ]),
     });
   } catch (error) {
-    await storage.delete(stored.storageKey);
+    await storageAdapter.delete(stored.storageKey);
     throw error;
   }
 
@@ -190,7 +193,8 @@ export async function createModelOutputAction(formData: FormData) {
 
 export async function deleteModelOutputAction(formData: FormData) {
   const storageKey = await deleteModelOutput(getString(formData, "outputId"));
-  await storage.delete(storageKey);
+  const storageAdapter = await storage;
+  await storageAdapter.delete(storageKey);
   revalidatePath("/admin");
   revalidatePath("/compare");
   revalidatePath("/providers");

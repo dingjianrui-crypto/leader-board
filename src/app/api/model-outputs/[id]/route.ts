@@ -12,7 +12,8 @@ export async function DELETE(
   try {
     const { id } = await params;
     const storageKey = await deleteModelOutput(id);
-    await storage.delete(storageKey);
+    const storageAdapter = await storage;
+    await storageAdapter.delete(storageKey);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     return jsonError(error);

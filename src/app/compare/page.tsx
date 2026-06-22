@@ -119,13 +119,13 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
                 </p>
                 <h2 className="mt-1 text-2xl font-semibold">{activeCase.title}</h2>
                 <p className="max-w-4xl text-slate-300">{activeCase.prompt}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {activeCase.assets.map((asset) => (
-                    <span key={asset.id} className="chip">
-                      {asset.filename}
-                    </span>
-                  ))}
-                </div>
+                {activeCase.assets.length ? (
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    {activeCase.assets.map((asset) => (
+                      <ReferencePreview key={asset.id} asset={asset} />
+                    ))}
+                  </div>
+                ) : null}
               </article>
 
               <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
@@ -163,7 +163,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
               </div>
 
               <div className="table-panel">
-                <table className="w-full border-collapse text-left text-sm">
+                <table className="min-w-[920px] w-full border-collapse text-left text-sm">
                   <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
                     <tr>
                       <th className="p-4">Rank</th>
@@ -201,6 +201,66 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
         </div>
       </section>
     </div>
+  );
+}
+
+function ReferencePreview({
+  asset,
+}: {
+  asset: {
+    filename: string;
+    assetType: string;
+    mimeType: string;
+    accessPath: string;
+  };
+}) {
+  const label = asset.filename;
+
+  if (asset.assetType === "image" || asset.mimeType.startsWith("image/")) {
+    return (
+      <figure className="w-40 overflow-hidden rounded-xl border border-border bg-[#05070d] sm:w-44">
+        <img className="h-24 w-full object-cover" src={asset.accessPath} alt={label} />
+        <figcaption className="truncate border-t border-border-soft px-3 py-2 text-xs text-muted">
+          {label}
+        </figcaption>
+      </figure>
+    );
+  }
+
+  if (asset.assetType === "video" || asset.mimeType.startsWith("video/")) {
+    return (
+      <figure className="w-40 overflow-hidden rounded-xl border border-border bg-[#05070d] sm:w-44">
+        <video
+          className="h-24 w-full object-cover"
+          src={asset.accessPath}
+          controls
+          muted
+          preload="metadata"
+        />
+        <figcaption className="truncate border-t border-border-soft px-3 py-2 text-xs text-muted">
+          {label}
+        </figcaption>
+      </figure>
+    );
+  }
+
+  if (asset.assetType === "audio" || asset.mimeType.startsWith("audio/")) {
+    return (
+      <figure className="grid min-h-24 w-56 content-center gap-2 rounded-xl border border-border bg-[#05070d] p-3">
+        <figcaption className="truncate text-xs text-muted">{label}</figcaption>
+        <audio className="w-full" src={asset.accessPath} controls preload="metadata" />
+      </figure>
+    );
+  }
+
+  return (
+    <a
+      className="grid min-h-24 w-44 content-center rounded-xl border border-border bg-[#05070d] p-3 text-sm text-slate-300 hover:border-accent"
+      href={asset.accessPath}
+    >
+      <span className="truncate">{label}</span>
+      <span className="mt-1 text-xs text-muted">{asset.mimeType}</span>
+    </a>
   );
 }
 

@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { TOS_BUCKET, TOS_ENDPOINT, TOS_PUBLIC_BASE_URL } from "@/lib/config";
 import { db } from "@/lib/db";
 import {
   categories,
@@ -9,8 +10,26 @@ import {
   testCases,
 } from "@/lib/db/schema";
 import { createId } from "@/lib/ids";
+import { publicTosObjectUrl } from "@/lib/storage/urls";
 
 const now = () => new Date();
+
+function publicAccessPath(file: {
+  storageProvider?: string;
+  storageKey: string;
+  accessPath: string;
+}) {
+  if (file.storageProvider !== "object_store" || !TOS_BUCKET || !TOS_ENDPOINT) {
+    return file.accessPath;
+  }
+
+  return publicTosObjectUrl({
+    bucket: TOS_BUCKET,
+    endpoint: TOS_ENDPOINT,
+    storageKey: file.storageKey,
+    publicBaseUrl: TOS_PUBLIC_BASE_URL,
+  });
+}
 
 export async function listProvidersWithModels() {
   return db.query.providers.findMany({
@@ -123,7 +142,7 @@ export async function listTestCases(filters?: { categoryIds?: string[] }) {
   const where =
     filters?.categoryIds?.length ? inArray(testCases.categoryId, filters.categoryIds) : undefined;
 
-  return db.query.testCases.findMany({
+  const rows = await db.query.testCases.findMany({
     where,
     orderBy: desc(testCases.createdAt),
     with: {
@@ -132,6 +151,14 @@ export async function listTestCases(filters?: { categoryIds?: string[] }) {
       outputs: true,
     },
   });
+
+  return rows.map((testCase) => ({
+    ...testCase,
+    assets: testCase.assets.map((asset) => ({
+      ...asset,
+      accessPath: publicAccessPath(asset),
+    })),
+  }));
 }
 
 export async function createTestCase(input: {
@@ -235,7 +262,7 @@ export async function listModelOutputs(filters?: {
   if (filters?.testCaseId) clauses.push(eq(modelOutputs.testCaseId, filters.testCaseId));
   if (filters?.modelIds?.length) clauses.push(inArray(modelOutputs.modelId, filters.modelIds));
 
-  return db.query.modelOutputs.findMany({
+  const rows = await db.query.modelOutputs.findMany({
     where: clauses.length ? and(...clauses) : undefined,
     orderBy: desc(modelOutputs.scoreOverall),
     with: {
@@ -252,15 +279,33 @@ export async function listModelOutputs(filters?: {
       },
     },
   });
+
+  return rows.map((output) => ({
+    ...output,
+    videoAccessPath: publicAccessPath({
+      storageProvider: output.videoStorageProvider,
+      storageKey: output.videoStorageKey,
+      accessPath: output.videoAccessPath,
+    }),
+    testCase: {
+      ...output.testCase,
+      assets: output.testCase.assets.map((asset) => ({
+        ...asset,
+        accessPath: publicAccessPath(asset),
+      })),
+    },
+  }));
 }
 
 export async function findFileRecord(storageKey: string) {
   const [asset] = await db
     .select({
+      storageProvider: testCaseAssets.storageProvider,
       storageKey: testCaseAssets.storageKey,
       accessPath: testCaseAssets.accessPath,
       mimeType: testCaseAssets.mimeType,
       filename: testCaseAssets.filename,
+      sizeBytes: testCaseAssets.sizeBytes,
     })
     .from(testCaseAssets)
     .where(eq(testCaseAssets.storageKey, storageKey))
@@ -270,10 +315,12 @@ export async function findFileRecord(storageKey: string) {
 
   const [output] = await db
     .select({
+      storageProvider: modelOutputs.videoStorageProvider,
       storageKey: modelOutputs.videoStorageKey,
       accessPath: modelOutputs.videoAccessPath,
       mimeType: modelOutputs.videoMimeType,
       filename: modelOutputs.videoFilename,
+      sizeBytes: modelOutputs.videoSizeBytes,
     })
     .from(modelOutputs)
     .where(eq(modelOutputs.videoStorageKey, storageKey))

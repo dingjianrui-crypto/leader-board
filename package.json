@@ -5,14 +5,16 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
     "lint": "next lint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "storage:migrate-local-to-tos": "node scripts/migrate-local-uploads-to-tos.js"
   },
   "dependencies": {
     "@libsql/client": "^0.15.15",
+    "@volcengine/tos-sdk": "^2.9.1",
     "better-sqlite3": "^11.10.0",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.44.2",

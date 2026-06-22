@@ -45,11 +45,12 @@ async function createFromMultipart(request: NextRequest) {
   });
 
   const testCaseId = await createTestCase(input);
+  const storageAdapter = await storage;
 
   try {
     for (const file of getFiles(formData, "assets")) {
       validateUpload(file, referenceExtensions);
-      const stored = await storage.save({
+      const stored = await storageAdapter.save({
         scope: "test-case-asset",
         ownerId: testCaseId,
         file,
@@ -66,7 +67,7 @@ async function createFromMultipart(request: NextRequest) {
           accessPath: stored.accessPath,
         });
       } catch (error) {
-        await storage.delete(stored.storageKey);
+        await storageAdapter.delete(stored.storageKey);
         throw error;
       }
     }

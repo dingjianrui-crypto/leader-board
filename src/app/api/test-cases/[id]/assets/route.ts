@@ -17,10 +17,11 @@ export async function POST(
       .getAll("assets")
       .filter((value): value is File => value instanceof File && value.size > 0);
 
+    const storageAdapter = await storage;
     const assetIds = [];
     for (const file of files) {
       validateUpload(file, referenceExtensions);
-      const stored = await storage.save({
+      const stored = await storageAdapter.save({
         scope: "test-case-asset",
         ownerId: id,
         file,
@@ -39,7 +40,7 @@ export async function POST(
           }),
         );
       } catch (error) {
-        await storage.delete(stored.storageKey);
+        await storageAdapter.delete(stored.storageKey);
         throw error;
       }
     }
