@@ -3,7 +3,6 @@ import Link from "next/link";
 import { BarChart3, Database, Settings2 } from "lucide-react";
 import "./globals.css";
 import { getSummaryCounts } from "@/lib/repositories/leaderboard";
-import { ensureSeedData } from "@/lib/seed";
 
 export const metadata: Metadata = {
   title: "Leader Board",
@@ -21,7 +20,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  await ensureSeedData();
   const counts = await getSummaryCounts();
 
   return (
