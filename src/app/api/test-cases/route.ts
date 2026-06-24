@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jsonError } from "@/lib/http";
+import { jsonError, redirectSeeOther } from "@/lib/http";
 import {
   createTestCase,
   createTestCaseAsset,
@@ -77,7 +77,7 @@ async function createFromMultipart(request: NextRequest) {
     throw error;
   }
 
-  return NextResponse.redirect(new URL(`/compare?case=${testCaseId}`, request.url), 303);
+  return redirectSeeOther(`/compare?case=${testCaseId}`);
 }
 
 function getString(formData: FormData, key: string) {

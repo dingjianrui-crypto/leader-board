@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+export function redirectSeeOther(path: string) {
+  return new Response(null, {
+    status: 303,
+    headers: {
+      Location: path,
+    },
+  });
+}
+
 export function jsonError(error: unknown) {
   if (error instanceof ZodError) {
     return NextResponse.json(

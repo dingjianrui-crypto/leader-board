@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jsonError } from "@/lib/http";
+import { jsonError, redirectSeeOther } from "@/lib/http";
 import { createModelOutput, listModelOutputs } from "@/lib/repositories/leaderboard";
 import { computeOverallScore } from "@/lib/scoring";
 import { storage } from "@/lib/storage";
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       });
       const accept = request.headers.get("accept") ?? "";
       if (accept.includes("text/html")) {
-        return NextResponse.redirect(new URL(`/compare?case=${input.testCaseId}`, request.url), 303);
+        return redirectSeeOther(`/compare?case=${input.testCaseId}`);
       }
       return NextResponse.json({ id }, { status: 201 });
     } catch (error) {
