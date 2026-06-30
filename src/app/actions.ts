@@ -41,6 +41,12 @@ function getFiles(formData: FormData, key: string) {
     .filter((value): value is File => value instanceof File && value.size > 0);
 }
 
+function revalidateLeaderboardViews() {
+  revalidatePath("/");
+  revalidatePath("/admin");
+  revalidatePath("/compare");
+}
+
 export async function createProviderAction(formData: FormData) {
   const input = providerInputSchema.parse({
     name: getString(formData, "name"),
@@ -57,22 +63,19 @@ export async function createModelAction(formData: FormData) {
   });
   await createModel(input);
   revalidatePath("/providers");
-  revalidatePath("/compare");
-  revalidatePath("/admin");
+  revalidateLeaderboardViews();
 }
 
 export async function deleteProviderAction(formData: FormData) {
   await deleteProvider(getString(formData, "providerId"));
   revalidatePath("/providers");
-  revalidatePath("/compare");
-  revalidatePath("/admin");
+  revalidateLeaderboardViews();
 }
 
 export async function deleteModelAction(formData: FormData) {
   await deleteModel(getString(formData, "modelId"));
   revalidatePath("/providers");
-  revalidatePath("/compare");
-  revalidatePath("/admin");
+  revalidateLeaderboardViews();
 }
 
 export async function createCategoryAction(formData: FormData) {
@@ -81,14 +84,12 @@ export async function createCategoryAction(formData: FormData) {
     description: getString(formData, "description"),
   });
   await createCategory(input);
-  revalidatePath("/admin");
-  revalidatePath("/compare");
+  revalidateLeaderboardViews();
 }
 
 export async function deleteCategoryAction(formData: FormData) {
   await deleteCategory(getString(formData, "categoryId"));
-  revalidatePath("/admin");
-  revalidatePath("/compare");
+  revalidateLeaderboardViews();
 }
 
 export async function createTestCaseAction(formData: FormData) {
@@ -125,8 +126,7 @@ export async function createTestCaseAction(formData: FormData) {
     }
   }
 
-  revalidatePath("/admin");
-  revalidatePath("/compare");
+  revalidateLeaderboardViews();
   redirect("/admin");
 }
 
@@ -134,8 +134,7 @@ export async function deleteTestCaseAction(formData: FormData) {
   const storageKeys = await deleteTestCase(getString(formData, "testCaseId"));
   const storageAdapter = await storage;
   await Promise.all(storageKeys.map((storageKey) => storageAdapter.delete(storageKey)));
-  revalidatePath("/admin");
-  revalidatePath("/compare");
+  revalidateLeaderboardViews();
 }
 
 export async function createModelOutputAction(formData: FormData) {
@@ -177,8 +176,7 @@ export async function createModelOutputAction(formData: FormData) {
     throw error;
   }
 
-  revalidatePath("/admin");
-  revalidatePath("/compare");
+  revalidateLeaderboardViews();
   redirect("/admin");
 }
 
@@ -186,8 +184,7 @@ export async function deleteModelOutputAction(formData: FormData) {
   const storageKey = await deleteModelOutput(getString(formData, "outputId"));
   const storageAdapter = await storage;
   await storageAdapter.delete(storageKey);
-  revalidatePath("/admin");
-  revalidatePath("/compare");
+  revalidateLeaderboardViews();
   revalidatePath("/providers");
 }
 
@@ -227,8 +224,7 @@ export async function updateTestCaseAction(formData: FormData) {
     }
   }
 
-  revalidatePath("/admin");
-  revalidatePath("/compare");
+  revalidateLeaderboardViews();
   redirect("/admin");
 }
 
@@ -293,8 +289,7 @@ export async function updateModelOutputAction(formData: FormData) {
     throw error;
   }
 
-  revalidatePath("/admin");
-  revalidatePath("/compare");
+  revalidateLeaderboardViews();
   revalidatePath("/providers");
   redirect("/admin");
 }

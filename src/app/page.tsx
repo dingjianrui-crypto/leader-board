@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getGsbMatrix } from "@/lib/repositories/leaderboard";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const matrix = await getGsbMatrix();
 
