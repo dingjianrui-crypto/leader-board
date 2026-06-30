@@ -421,3 +421,68 @@ export function summarizeGsbValue(gsbValue: string) {
   if (badGsbValues.has(gsbValue)) return "Bad";
   return "Normal";
 }
+
+export async function getGsbMatrix() {
+  const [categoryRows, providerRows, outputRows] = await Promise.all([
+    listCategories(),
+    listProvidersWithModels(),
+    listModelOutputs(),
+  ]);
+
+  const modelRows = providerRows.flatMap((provider) =>
+    provider.models.map((model) => ({
+      id: model.id,
+      name: model.name,
+      version: model.version,
+      providerName: provider.name,
+    })),
+  );
+
+  const cells = new Map<
+    string,
+    {
+      good: number;
+      bad: number;
+      total: number;
+    }
+  >();
+
+  for (const output of outputRows) {
+    const categoryId = output.testCase.categoryId;
+    const key = `${output.modelId}:${categoryId}`;
+    const cell = cells.get(key) ?? { good: 0, bad: 0, total: 0 };
+    cell.total += 1;
+    if (goodGsbValues.has(output.gsbValue)) cell.good += 1;
+    if (badGsbValues.has(output.gsbValue)) cell.bad += 1;
+    cells.set(key, cell);
+  }
+
+  return {
+    categories: categoryRows.map((category) => ({
+      id: category.id,
+      name: category.name,
+    })),
+    models: modelRows.map((model) => ({
+      ...model,
+      cells: Object.fromEntries(
+        categoryRows.map((category) => {
+          const counts = cells.get(`${model.id}:${category.id}`);
+          return [
+            category.id,
+            counts
+              ? {
+                  ...counts,
+                  value: counts.total === 0 ? null : (counts.good - counts.bad) / counts.total,
+                }
+              : {
+                  good: 0,
+                  bad: 0,
+                  total: 0,
+                  value: null,
+                },
+          ];
+        }),
+      ),
+    })),
+  };
+}

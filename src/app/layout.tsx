@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BarChart3, Database, Settings2 } from "lucide-react";
+import { BarChart3, Database, Gauge, Settings2 } from "lucide-react";
 import "./globals.css";
 import { getSummaryCounts } from "@/lib/repositories/leaderboard";
 
@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 };
 
 const nav = [
+  { href: "/", label: "GSB", icon: Gauge },
   { href: "/compare", label: "Compare", icon: BarChart3 },
   { href: "/admin", label: "Admin Workspace", icon: Database },
   { href: "/providers", label: "Providers", icon: Settings2 },
@@ -27,7 +28,7 @@ export default async function RootLayout({
       <body className="font-sans">
         <div className="grid min-h-screen grid-cols-[280px_minmax(0,1fr)] max-lg:grid-cols-[88px_minmax(0,1fr)] max-sm:grid-cols-1">
           <aside className="sticky top-0 flex h-screen flex-col gap-8 border-r border-border-soft bg-panel/80 p-6 max-sm:static max-sm:h-auto max-sm:flex-row max-sm:items-center max-sm:overflow-x-auto">
-            <Link href="/compare" className="flex min-w-0 items-center gap-3">
+            <Link href="/" className="flex min-w-0 items-center gap-3">
               <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-accent font-mono text-xs font-black text-[#06101d] shadow-glow">
                 LB
               </div>
