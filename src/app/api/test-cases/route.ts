@@ -77,7 +77,7 @@ async function createFromMultipart(request: NextRequest) {
     throw error;
   }
 
-  return redirectSeeOther(`/compare?case=${testCaseId}`);
+  return redirectSeeOther("/admin");
 }
 
 function getString(formData: FormData, key: string) {

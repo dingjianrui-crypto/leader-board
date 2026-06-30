@@ -83,11 +83,8 @@ export const modelOutputs = sqliteTable("model_outputs", {
   videoStorageProvider: text("video_storage_provider").notNull(),
   videoStorageKey: text("video_storage_key").notNull().unique(),
   videoAccessPath: text("video_access_path").notNull(),
-  scorePromptMatch: real("score_prompt_match").notNull(),
-  scoreReference: real("score_reference").notNull(),
-  scoreMotion: real("score_motion").notNull(),
-  scoreAudioSync: real("score_audio_sync").notNull(),
-  scoreOverall: real("score_overall").notNull(),
+  gsbValue: text("gsb_value").notNull().default("normal"),
+  userComments: text("user_comments").notNull().default(""),
   createdAt: timestamp("created_at"),
   updatedAt: timestamp("updated_at"),
 });

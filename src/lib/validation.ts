@@ -23,15 +23,13 @@ export const testCaseInputSchema = z.object({
   description: z.string().trim().min(1, "Description is required"),
 });
 
-const score = z.coerce.number().min(0).max(10);
+export const gsbValues = ["best", "samebest", "normal", "samenormal", "worst", "sameworst"] as const;
 
 export const modelOutputInputSchema = z.object({
   testCaseId: z.string().min(1, "Test case is required"),
   modelId: z.string().min(1, "Model is required"),
-  scorePromptMatch: score,
-  scoreReference: score,
-  scoreMotion: score,
-  scoreAudioSync: score,
+  gsbValue: z.enum(gsbValues),
+  userComments: z.string().trim().max(1000, "Comments must be 1000 characters or fewer").default(""),
 });
 
 export const referenceExtensions = new Set([

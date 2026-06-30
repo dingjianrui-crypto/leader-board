@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { listCategories, listModelOutputs, listProvidersWithModels, listTestCases } from "@/lib/repositories/leaderboard";
-import { formatScore } from "@/lib/scoring";
 
 type SearchParams = Promise<{
   categories?: string;
@@ -147,10 +146,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
                               {output.model.name} · {output.model.version}
                             </p>
                           </div>
-                          <strong className="font-mono text-2xl text-accent">{formatScore(output.scoreOverall)}</strong>
-                        </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-border-soft">
-                          <div className="h-full bg-accent" style={{ width: `${output.scoreOverall * 10}%` }} />
+                          <strong className="font-mono text-lg text-accent">{output.gsbValue}</strong>
                         </div>
                       </div>
                     </article>
@@ -163,17 +159,14 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
               </div>
 
               <div className="table-panel">
-                <table className="min-w-[920px] w-full border-collapse text-left text-sm">
+                <table className="min-w-[800px] w-full border-collapse text-left text-sm">
                   <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
                     <tr>
                       <th className="p-4">Rank</th>
                       <th className="p-4">Provider</th>
                       <th className="p-4">Model</th>
-                      <th className="p-4">Overall</th>
-                      <th className="p-4">Prompt</th>
-                      <th className="p-4">Reference</th>
-                      <th className="p-4">Motion</th>
-                      <th className="p-4">Audio</th>
+                      <th className="p-4">GSB</th>
+                      <th className="p-4">Comments</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -182,11 +175,10 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
                         <td className="p-4 font-mono">{index + 1}</td>
                         <td className="p-4">{output.model.provider.name}</td>
                         <td className="p-4">{output.model.name}</td>
-                        <td className="p-4 font-semibold text-accent">{formatScore(output.scoreOverall)}</td>
-                        <td className="p-4">{formatScore(output.scorePromptMatch)}</td>
-                        <td className="p-4">{formatScore(output.scoreReference)}</td>
-                        <td className="p-4">{formatScore(output.scoreMotion)}</td>
-                        <td className="p-4">{formatScore(output.scoreAudioSync)}</td>
+                        <td className="p-4 font-semibold text-accent">{output.gsbValue}</td>
+                        <td className="max-w-xs p-4 text-muted">
+                          <span className="line-clamp-2">{output.userComments || "-"}</span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

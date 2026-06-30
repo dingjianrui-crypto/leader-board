@@ -25,9 +25,10 @@ import {
   deleteModelOutput,
   deleteProvider,
   deleteTestCase,
+  updateModelOutput,
+  updateTestCase,
 } from "@/lib/repositories/leaderboard";
-import { storage } from "@/lib/storage";
-import { computeOverallScore } from "@/lib/scoring";
+import { getStorageAdapter, storage } from "@/lib/storage";
 
 function getString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -126,7 +127,7 @@ export async function createTestCaseAction(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/compare");
-  redirect(`/compare?case=${testCaseId}`);
+  redirect("/admin");
 }
 
 export async function deleteTestCaseAction(formData: FormData) {
@@ -141,10 +142,8 @@ export async function createModelOutputAction(formData: FormData) {
   const input = modelOutputInputSchema.parse({
     testCaseId: getString(formData, "testCaseId"),
     modelId: getString(formData, "modelId"),
-    scorePromptMatch: getString(formData, "scorePromptMatch"),
-    scoreReference: getString(formData, "scoreReference"),
-    scoreMotion: getString(formData, "scoreMotion"),
-    scoreAudioSync: getString(formData, "scoreAudioSync"),
+    gsbValue: getString(formData, "gsbValue"),
+    userComments: getString(formData, "userComments"),
   });
   const [file] = getFiles(formData, "video");
   if (!file) {
@@ -170,16 +169,8 @@ export async function createModelOutputAction(formData: FormData) {
       videoStorageProvider: stored.storageProvider,
       videoStorageKey: stored.storageKey,
       videoAccessPath: stored.accessPath,
-      scorePromptMatch: input.scorePromptMatch,
-      scoreReference: input.scoreReference,
-      scoreMotion: input.scoreMotion,
-      scoreAudioSync: input.scoreAudioSync,
-      scoreOverall: computeOverallScore([
-        input.scorePromptMatch,
-        input.scoreReference,
-        input.scoreMotion,
-        input.scoreAudioSync,
-      ]),
+      gsbValue: input.gsbValue,
+      userComments: input.userComments,
     });
   } catch (error) {
     await storageAdapter.delete(stored.storageKey);
@@ -188,7 +179,7 @@ export async function createModelOutputAction(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/compare");
-  redirect(`/compare?case=${input.testCaseId}`);
+  redirect("/admin");
 }
 
 export async function deleteModelOutputAction(formData: FormData) {
@@ -198,4 +189,112 @@ export async function deleteModelOutputAction(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/compare");
   revalidatePath("/providers");
+}
+
+export async function updateTestCaseAction(formData: FormData) {
+  const id = getString(formData, "testCaseId");
+  const input = testCaseInputSchema.parse({
+    title: getString(formData, "title"),
+    categoryId: getString(formData, "categoryId"),
+    prompt: getString(formData, "prompt"),
+    description: getString(formData, "description"),
+  });
+
+  await updateTestCase({ id, ...input });
+
+  const storageAdapter = await storage;
+  for (const file of getFiles(formData, "assets")) {
+    validateUpload(file, referenceExtensions);
+    const stored = await storageAdapter.save({
+      scope: "test-case-asset",
+      ownerId: id,
+      file,
+    });
+    try {
+      await createTestCaseAsset({
+        testCaseId: id,
+        assetType: getAssetType(file.name),
+        filename: stored.filename,
+        mimeType: stored.mimeType,
+        sizeBytes: stored.sizeBytes,
+        storageProvider: stored.storageProvider,
+        storageKey: stored.storageKey,
+        accessPath: stored.accessPath,
+      });
+    } catch (error) {
+      await storageAdapter.delete(stored.storageKey);
+      throw error;
+    }
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/compare");
+  redirect("/admin");
+}
+
+export async function updateModelOutputAction(formData: FormData) {
+  const outputId = getString(formData, "outputId");
+  const input = modelOutputInputSchema.parse({
+    testCaseId: getString(formData, "testCaseId"),
+    modelId: getString(formData, "modelId"),
+    gsbValue: getString(formData, "gsbValue"),
+    userComments: getString(formData, "userComments"),
+  });
+
+  const [file] = getFiles(formData, "video");
+  const storageAdapter = await storage;
+  let stored:
+    | {
+        filename: string;
+        mimeType: string;
+        sizeBytes: number;
+        storageProvider: string;
+        storageKey: string;
+        accessPath: string;
+      }
+    | undefined;
+
+  if (file) {
+    validateUpload(file, outputVideoExtensions);
+    stored = await storageAdapter.save({
+      scope: "model-output",
+      ownerId: `${input.testCaseId}-${input.modelId}`,
+      file,
+    });
+  }
+
+  try {
+    const oldFile = await updateModelOutput({
+      id: outputId,
+      testCaseId: input.testCaseId,
+      modelId: input.modelId,
+      gsbValue: input.gsbValue,
+      userComments: input.userComments,
+      videoFile: stored
+        ? {
+            videoFilename: stored.filename,
+            videoMimeType: stored.mimeType,
+            videoSizeBytes: stored.sizeBytes,
+            videoStorageProvider: stored.storageProvider,
+            videoStorageKey: stored.storageKey,
+            videoAccessPath: stored.accessPath,
+          }
+        : undefined,
+    });
+
+    if (oldFile) {
+      const oldStorageAdapter = await getStorageAdapter(oldFile.storageProvider);
+      await oldStorageAdapter.delete(oldFile.storageKey);
+    }
+  } catch (error) {
+    if (stored) {
+      await storageAdapter.delete(stored.storageKey);
+    }
+    throw error;
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/compare");
+  revalidatePath("/providers");
+  redirect("/admin");
 }

@@ -13,6 +13,8 @@ import { createId } from "@/lib/ids";
 import { publicTosObjectUrl } from "@/lib/storage/urls";
 
 const now = () => new Date();
+const goodGsbValues = new Set(["best", "samebest"]);
+const badGsbValues = new Set(["worst", "sameworst"]);
 
 function publicAccessPath(file: {
   storageProvider?: string;
@@ -105,10 +107,13 @@ export async function listCategories() {
       id: categories.id,
       name: categories.name,
       description: categories.description,
-      testCaseCount: sql<number>`count(${testCases.id})`,
+      testCaseCount: sql<number>`count(distinct ${testCases.id})`,
+      goodOutputCount: sql<number>`sum(case when ${modelOutputs.gsbValue} in ('best', 'samebest') then 1 else 0 end)`,
+      badOutputCount: sql<number>`sum(case when ${modelOutputs.gsbValue} in ('worst', 'sameworst') then 1 else 0 end)`,
     })
     .from(categories)
     .leftJoin(testCases, eq(testCases.categoryId, categories.id))
+    .leftJoin(modelOutputs, eq(modelOutputs.testCaseId, testCases.id))
     .groupBy(categories.id)
     .orderBy(categories.name);
 }
@@ -180,6 +185,25 @@ export async function createTestCase(input: {
   return id;
 }
 
+export async function updateTestCase(input: {
+  id: string;
+  title: string;
+  categoryId: string;
+  prompt: string;
+  description: string;
+}) {
+  await db
+    .update(testCases)
+    .set({
+      title: input.title,
+      categoryId: input.categoryId,
+      prompt: input.prompt,
+      description: input.description,
+      updatedAt: now(),
+    })
+    .where(eq(testCases.id, input.id));
+}
+
 export async function createTestCaseAsset(input: {
   testCaseId: string;
   assetType: string;
@@ -223,11 +247,8 @@ export async function createModelOutput(input: {
   videoStorageProvider: string;
   videoStorageKey: string;
   videoAccessPath: string;
-  scorePromptMatch: number;
-  scoreReference: number;
-  scoreMotion: number;
-  scoreAudioSync: number;
-  scoreOverall: number;
+  gsbValue: string;
+  userComments: string;
 }) {
   const id = createId("output");
   await db.insert(modelOutputs).values({
@@ -237,6 +258,49 @@ export async function createModelOutput(input: {
     updatedAt: now(),
   });
   return id;
+}
+
+export async function updateModelOutput(input: {
+  id: string;
+  testCaseId: string;
+  modelId: string;
+  gsbValue: string;
+  userComments: string;
+  videoFile?: {
+    videoFilename: string;
+    videoMimeType: string;
+    videoSizeBytes: number;
+    videoStorageProvider: string;
+    videoStorageKey: string;
+    videoAccessPath: string;
+  };
+}) {
+  const [existing] = await db
+    .select({
+      storageProvider: modelOutputs.videoStorageProvider,
+      storageKey: modelOutputs.videoStorageKey,
+    })
+    .from(modelOutputs)
+    .where(eq(modelOutputs.id, input.id))
+    .limit(1);
+
+  if (!existing) {
+    throw new Error("Model output was not found.");
+  }
+
+  await db
+    .update(modelOutputs)
+    .set({
+      testCaseId: input.testCaseId,
+      modelId: input.modelId,
+      gsbValue: input.gsbValue,
+      userComments: input.userComments,
+      ...(input.videoFile ?? {}),
+      updatedAt: now(),
+    })
+    .where(eq(modelOutputs.id, input.id));
+
+  return input.videoFile ? existing : null;
 }
 
 export async function deleteModelOutput(outputId: string) {
@@ -264,7 +328,18 @@ export async function listModelOutputs(filters?: {
 
   const rows = await db.query.modelOutputs.findMany({
     where: clauses.length ? and(...clauses) : undefined,
-    orderBy: desc(modelOutputs.scoreOverall),
+    orderBy: [
+      sql`case ${modelOutputs.gsbValue}
+        when 'best' then 1
+        when 'samebest' then 2
+        when 'normal' then 3
+        when 'samenormal' then 4
+        when 'sameworst' then 5
+        when 'worst' then 6
+        else 7
+      end`,
+      desc(modelOutputs.createdAt),
+    ],
     with: {
       model: {
         with: {
@@ -339,4 +414,10 @@ export async function getSummaryCounts() {
     modelOutputs: outputCount.count,
     providerModels: modelCount.count,
   };
+}
+
+export function summarizeGsbValue(gsbValue: string) {
+  if (goodGsbValues.has(gsbValue)) return "Good";
+  if (badGsbValues.has(gsbValue)) return "Bad";
+  return "Normal";
 }

@@ -92,10 +92,10 @@ export async function ensureSeedData() {
   ]);
 
   await db.insert(modelOutputs).values([
-    output("output_a", "case_studio_dolly", "model_a_1", "provider-a-dolly.mp4", 9.4, 9.0, 8.8, 9.2),
-    output("output_b", "case_studio_dolly", "model_b_2", "provider-b-dolly.mp4", 8.8, 8.4, 8.7, 8.5),
-    output("output_c", "case_studio_dolly", "model_c_1", "provider-c-dolly.mp4", 8.1, 7.6, 8.2, 7.8),
-    output("output_d", "case_studio_dolly", "model_d_1", "provider-d-dolly.mp4", 7.6, 7.2, 7.4, 7.0),
+    output("output_a", "case_studio_dolly", "model_a_1", "provider-a-dolly.mp4"),
+    output("output_b", "case_studio_dolly", "model_b_2", "provider-b-dolly.mp4"),
+    output("output_c", "case_studio_dolly", "model_c_1", "provider-c-dolly.mp4"),
+    output("output_d", "case_studio_dolly", "model_d_1", "provider-d-dolly.mp4"),
   ]);
 }
 
@@ -119,12 +119,7 @@ function output(
   testCaseId: string,
   modelId: string,
   filename: string,
-  prompt: number,
-  reference: number,
-  motion: number,
-  audio: number,
 ) {
-  const overall = Math.round(((prompt + reference + motion + audio) / 4) * 10) / 10;
   return {
     id,
     testCaseId,
@@ -135,11 +130,8 @@ function output(
     videoStorageProvider: "local",
     videoStorageKey: `seed/${filename}`,
     videoAccessPath: "#",
-    scorePromptMatch: prompt,
-    scoreReference: reference,
-    scoreMotion: motion,
-    scoreAudioSync: audio,
-    scoreOverall: overall,
+    gsbValue: "normal",
+    userComments: "",
     createdAt: now(),
     updatedAt: now(),
   };

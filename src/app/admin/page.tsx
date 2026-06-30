@@ -1,8 +1,13 @@
+import Link from "next/link";
 import {
   createCategoryAction,
+  createModelOutputAction,
+  createTestCaseAction,
   deleteCategoryAction,
   deleteModelOutputAction,
   deleteTestCaseAction,
+  updateModelOutputAction,
+  updateTestCaseAction,
 } from "@/app/actions";
 import {
   listCategories,
@@ -10,9 +15,14 @@ import {
   listProvidersWithModels,
   listTestCases,
 } from "@/lib/repositories/leaderboard";
-import { formatScore } from "@/lib/scoring";
 
-export default async function AdminPage() {
+type SearchParams = Promise<{
+  editCase?: string;
+  editOutput?: string;
+}>;
+
+export default async function AdminPage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
   const [categories, providers, testCases, outputs] = await Promise.all([
     listCategories(),
     listProvidersWithModels(),
@@ -26,6 +36,8 @@ export default async function AdminPage() {
       providerName: provider.name,
     })),
   );
+  const editingTestCase = testCases.find((testCase) => testCase.id === params.editCase);
+  const editingOutput = outputs.find((output) => output.id === params.editOutput);
 
   return (
     <div className="grid gap-8">
@@ -60,6 +72,8 @@ export default async function AdminPage() {
                 <th className="p-4">Category</th>
                 <th className="p-4">Description</th>
                 <th className="p-4">Test cases</th>
+                <th className="p-4">Good</th>
+                <th className="p-4">Bad</th>
                 <th className="p-4">Action</th>
               </tr>
             </thead>
@@ -69,6 +83,8 @@ export default async function AdminPage() {
                   <td className="p-4 font-semibold">{category.name}</td>
                   <td className="p-4 text-slate-300">{category.description}</td>
                   <td className="p-4">{category.testCaseCount}</td>
+                  <td className="p-4 text-emerald-300">{category.goodOutputCount ?? 0}</td>
+                  <td className="p-4 text-rose-300">{category.badOutputCount ?? 0}</td>
                   <td className="p-4">
                     {category.testCaseCount === 0 ? (
                       <form action={deleteCategoryAction}>
@@ -89,15 +105,34 @@ export default async function AdminPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-        <form action="/api/test-cases" method="post" encType="multipart/form-data" className="panel grid content-start gap-4">
-          <h2 className="text-xl font-semibold">Create test case</h2>
+        <form
+          id="test-case-form"
+          key={editingTestCase?.id ?? "new-test-case"}
+          action={editingTestCase ? updateTestCaseAction : createTestCaseAction}
+          className="panel grid content-start gap-4"
+        >
+          {editingTestCase ? <input type="hidden" name="testCaseId" value={editingTestCase.id} /> : null}
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-xl font-semibold">{editingTestCase ? "Edit test case" : "Create test case"}</h2>
+            {editingTestCase ? (
+              <Link href="/admin" className="btn">
+                Cancel
+              </Link>
+            ) : null}
+          </div>
           <label className="field">
             Test case title
-            <input className="input" name="title" placeholder="Studio dolly shot with product reveal" required />
+            <input
+              className="input"
+              name="title"
+              placeholder="Studio dolly shot with product reveal"
+              defaultValue={editingTestCase?.title}
+              required
+            />
           </label>
           <label className="field">
             Category
-            <select className="input" name="categoryId" required>
+            <select className="input" name="categoryId" defaultValue={editingTestCase?.categoryId ?? ""} required>
               <option value="">Select category</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
@@ -108,19 +143,23 @@ export default async function AdminPage() {
           </label>
           <label className="field">
             Text prompt
-            <textarea className="input min-h-28" name="prompt" required />
+            <textarea className="input min-h-28" name="prompt" defaultValue={editingTestCase?.prompt} required />
           </label>
           <label className="field">
             Description
-            <textarea className="input min-h-24" name="description" required />
+            <textarea className="input min-h-24" name="description" defaultValue={editingTestCase?.description} required />
           </label>
           <label className="field">
-            Reference assets
+            {editingTestCase ? "Add reference assets" : "Reference assets"}
             <input className="input" name="assets" type="file" multiple />
           </label>
-          <p className="text-xs text-muted">Images, audio, and videos are supported. Each file must be 50MB or smaller.</p>
+          <p className="text-xs text-muted">
+            {editingTestCase
+              ? `${editingTestCase.assets.length} existing files will be kept. New uploads are appended.`
+              : "Images, audio, and videos are supported. Each file must be 50MB or smaller."}
+          </p>
           <button className="btn btn-primary" type="submit">
-            Create test case
+            {editingTestCase ? "Save changes" : "Create test case"}
           </button>
         </form>
 
@@ -149,12 +188,17 @@ export default async function AdminPage() {
                     </span>
                   </td>
                   <td className="p-4">
-                    <form action={deleteTestCaseAction}>
-                      <input type="hidden" name="testCaseId" value={testCase.id} />
-                      <button className="btn border-rose-400/40 text-rose-200 hover:bg-rose-500/10" type="submit">
-                        Delete
-                      </button>
-                    </form>
+                    <div className="flex flex-wrap gap-2">
+                      <Link href={`/admin?editCase=${testCase.id}#test-case-form`} className="btn">
+                        Edit
+                      </Link>
+                      <form action={deleteTestCaseAction}>
+                        <input type="hidden" name="testCaseId" value={testCase.id} />
+                        <button className="btn border-rose-400/40 text-rose-200 hover:bg-rose-500/10" type="submit">
+                          Delete
+                        </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -164,11 +208,24 @@ export default async function AdminPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-        <form action="/api/model-outputs" method="post" encType="multipart/form-data" className="panel grid content-start gap-4">
-          <h2 className="text-xl font-semibold">Upload model output</h2>
+        <form
+          id="model-output-form"
+          key={editingOutput?.id ?? "new-model-output"}
+          action={editingOutput ? updateModelOutputAction : createModelOutputAction}
+          className="panel grid content-start gap-4"
+        >
+          {editingOutput ? <input type="hidden" name="outputId" value={editingOutput.id} /> : null}
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-xl font-semibold">{editingOutput ? "Edit model output" : "Upload model output"}</h2>
+            {editingOutput ? (
+              <Link href="/admin" className="btn">
+                Cancel
+              </Link>
+            ) : null}
+          </div>
           <label className="field">
             Test case
-            <select className="input" name="testCaseId" required>
+            <select className="input" name="testCaseId" defaultValue={editingOutput?.testCaseId ?? ""} required>
               <option value="">Select test case</option>
               {testCases.map((testCase) => (
                 <option key={testCase.id} value={testCase.id}>
@@ -179,7 +236,7 @@ export default async function AdminPage() {
           </label>
           <label className="field">
             Model
-            <select className="input" name="modelId" required>
+            <select className="input" name="modelId" defaultValue={editingOutput?.modelId ?? ""} required>
               <option value="">Select model</option>
               {models.map((model) => (
                 <option key={model.id} value={model.id}>
@@ -189,32 +246,53 @@ export default async function AdminPage() {
             </select>
           </label>
           <label className="field">
-            Output video
-            <input className="input" name="video" type="file" accept="video/mp4,video/quicktime,video/webm" required />
+            {editingOutput ? "Replace output video" : "Output video"}
+            <input
+              className="input"
+              name="video"
+              type="file"
+              accept="video/mp4,video/quicktime,video/webm"
+              required={!editingOutput}
+            />
           </label>
-          <div className="grid grid-cols-2 gap-3">
-            <ScoreInput name="scorePromptMatch" label="Prompt match" defaultValue="9.0" />
-            <ScoreInput name="scoreReference" label="Reference" defaultValue="8.5" />
-            <ScoreInput name="scoreMotion" label="Motion" defaultValue="8.5" />
-            <ScoreInput name="scoreAudioSync" label="Audio sync" defaultValue="8.0" />
-          </div>
+          {editingOutput ? (
+            <p className="text-xs text-muted">Current file: {editingOutput.videoFilename}. Leave empty to keep it.</p>
+          ) : null}
+          <label className="field">
+            GSB
+            <select className="input" name="gsbValue" defaultValue={editingOutput?.gsbValue ?? "normal"} required>
+              <option value="best">best</option>
+              <option value="samebest">samebest</option>
+              <option value="normal">normal</option>
+              <option value="samenormal">samenormal</option>
+              <option value="worst">worst</option>
+              <option value="sameworst">sameworst</option>
+            </select>
+          </label>
+          <label className="field">
+            Comments
+            <textarea
+              className="input min-h-24"
+              name="userComments"
+              maxLength={1000}
+              placeholder="Optional notes"
+              defaultValue={editingOutput?.userComments}
+            />
+          </label>
           <button className="btn btn-primary" type="submit">
-            Upload output
+            {editingOutput ? "Save changes" : "Upload output"}
           </button>
         </form>
 
         <div className="table-panel">
-          <table className="min-w-[1180px] w-full border-collapse text-left text-sm">
+          <table className="min-w-[980px] w-full border-collapse text-left text-sm">
             <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
               <tr>
                 <th className="p-4">Output</th>
                 <th className="p-4">Test case</th>
                 <th className="p-4">Model</th>
-                <th className="p-4">Overall</th>
-                <th className="p-4">Prompt</th>
-                <th className="p-4">Reference</th>
-                <th className="p-4">Motion</th>
-                <th className="p-4">Audio</th>
+                <th className="p-4">GSB</th>
+                <th className="p-4">Comments</th>
                 <th className="p-4">Action</th>
               </tr>
             </thead>
@@ -226,18 +304,22 @@ export default async function AdminPage() {
                   <td className="p-4">
                     {output.model.provider.name} / {output.model.name}
                   </td>
-                  <td className="p-4 font-semibold text-accent">{formatScore(output.scoreOverall)}</td>
-                  <td className="p-4">{formatScore(output.scorePromptMatch)}</td>
-                  <td className="p-4">{formatScore(output.scoreReference)}</td>
-                  <td className="p-4">{formatScore(output.scoreMotion)}</td>
-                  <td className="p-4">{formatScore(output.scoreAudioSync)}</td>
+                  <td className="p-4">{output.gsbValue}</td>
+                  <td className="max-w-72 p-4 text-slate-300">
+                    <span className="line-clamp-2">{output.userComments || "-"}</span>
+                  </td>
                   <td className="p-4">
-                    <form action={deleteModelOutputAction}>
-                      <input type="hidden" name="outputId" value={output.id} />
-                      <button className="btn border-rose-400/40 text-rose-200 hover:bg-rose-500/10" type="submit">
-                        Delete
-                      </button>
-                    </form>
+                    <div className="flex flex-wrap gap-2">
+                      <Link href={`/admin?editOutput=${output.id}#model-output-form`} className="btn">
+                        Edit
+                      </Link>
+                      <form action={deleteModelOutputAction}>
+                        <input type="hidden" name="outputId" value={output.id} />
+                        <button className="btn border-rose-400/40 text-rose-200 hover:bg-rose-500/10" type="submit">
+                          Delete
+                        </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -246,22 +328,5 @@ export default async function AdminPage() {
         </div>
       </section>
     </div>
-  );
-}
-
-function ScoreInput({
-  name,
-  label,
-  defaultValue,
-}: {
-  name: string;
-  label: string;
-  defaultValue: string;
-}) {
-  return (
-    <label className="field">
-      {label}
-      <input className="input" name={name} type="number" min="0" max="10" step="0.1" defaultValue={defaultValue} required />
-    </label>
   );
 }

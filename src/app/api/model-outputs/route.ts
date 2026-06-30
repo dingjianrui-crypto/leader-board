@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonError, redirectSeeOther } from "@/lib/http";
 import { createModelOutput, listModelOutputs } from "@/lib/repositories/leaderboard";
-import { computeOverallScore } from "@/lib/scoring";
 import { storage } from "@/lib/storage";
 import { modelOutputInputSchema, outputVideoExtensions, validateUpload } from "@/lib/validation";
 
@@ -23,10 +22,8 @@ export async function POST(request: NextRequest) {
     const input = modelOutputInputSchema.parse({
       testCaseId: getString(formData, "testCaseId"),
       modelId: getString(formData, "modelId"),
-      scorePromptMatch: getString(formData, "scorePromptMatch"),
-      scoreReference: getString(formData, "scoreReference"),
-      scoreMotion: getString(formData, "scoreMotion"),
-      scoreAudioSync: getString(formData, "scoreAudioSync"),
+      gsbValue: getString(formData, "gsbValue"),
+      userComments: getString(formData, "userComments"),
     });
     const file = formData.get("video");
     if (!(file instanceof File) || file.size === 0) {
@@ -51,20 +48,12 @@ export async function POST(request: NextRequest) {
         videoStorageProvider: stored.storageProvider,
         videoStorageKey: stored.storageKey,
         videoAccessPath: stored.accessPath,
-        scorePromptMatch: input.scorePromptMatch,
-        scoreReference: input.scoreReference,
-        scoreMotion: input.scoreMotion,
-        scoreAudioSync: input.scoreAudioSync,
-        scoreOverall: computeOverallScore([
-          input.scorePromptMatch,
-          input.scoreReference,
-          input.scoreMotion,
-          input.scoreAudioSync,
-        ]),
+        gsbValue: input.gsbValue,
+        userComments: input.userComments,
       });
       const accept = request.headers.get("accept") ?? "";
       if (accept.includes("text/html")) {
-        return redirectSeeOther(`/compare?case=${input.testCaseId}`);
+        return redirectSeeOther("/admin");
       }
       return NextResponse.json({ id }, { status: 201 });
     } catch (error) {
