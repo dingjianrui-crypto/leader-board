@@ -32,6 +32,7 @@ coverage/
 # local caches
 .turbo/
 .cache/
+.npm-cache/
 
 # OS/editor
 .DS_Store

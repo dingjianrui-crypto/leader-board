@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { routing, type Locale } from "@/i18n/routing";
 import {
   categoryInputSchema,
   getAssetType,
@@ -41,58 +42,78 @@ function getFiles(formData: FormData, key: string) {
     .filter((value): value is File => value instanceof File && value.size > 0);
 }
 
-function revalidateLeaderboardViews() {
-  revalidatePath("/");
-  revalidatePath("/admin");
-  revalidatePath("/compare");
+function getLocale(formData: FormData): Locale {
+  const value = getString(formData, "locale");
+  return routing.locales.includes(value as Locale) ? (value as Locale) : routing.defaultLocale;
+}
+
+function localizedPath(path: string, locale: Locale) {
+  return `/${locale}${path === "/" ? "" : path}`;
+}
+
+function revalidateLocalizedPath(path: string, locale: Locale) {
+  revalidatePath(localizedPath(path, locale));
+}
+
+function revalidateLeaderboardViews(locale: Locale) {
+  revalidateLocalizedPath("/", locale);
+  revalidateLocalizedPath("/admin", locale);
+  revalidateLocalizedPath("/compare", locale);
 }
 
 export async function createProviderAction(formData: FormData) {
+  const locale = getLocale(formData);
   const input = providerInputSchema.parse({
     name: getString(formData, "name"),
   });
   await createProvider(input);
-  revalidatePath("/providers");
+  revalidateLocalizedPath("/providers", locale);
 }
 
 export async function createModelAction(formData: FormData) {
+  const locale = getLocale(formData);
   const input = modelInputSchema.parse({
     providerId: getString(formData, "providerId"),
     name: getString(formData, "name"),
     version: getString(formData, "version"),
   });
   await createModel(input);
-  revalidatePath("/providers");
-  revalidateLeaderboardViews();
+  revalidateLocalizedPath("/providers", locale);
+  revalidateLeaderboardViews(locale);
 }
 
 export async function deleteProviderAction(formData: FormData) {
+  const locale = getLocale(formData);
   await deleteProvider(getString(formData, "providerId"));
-  revalidatePath("/providers");
-  revalidateLeaderboardViews();
+  revalidateLocalizedPath("/providers", locale);
+  revalidateLeaderboardViews(locale);
 }
 
 export async function deleteModelAction(formData: FormData) {
+  const locale = getLocale(formData);
   await deleteModel(getString(formData, "modelId"));
-  revalidatePath("/providers");
-  revalidateLeaderboardViews();
+  revalidateLocalizedPath("/providers", locale);
+  revalidateLeaderboardViews(locale);
 }
 
 export async function createCategoryAction(formData: FormData) {
+  const locale = getLocale(formData);
   const input = categoryInputSchema.parse({
     name: getString(formData, "name"),
     description: getString(formData, "description"),
   });
   await createCategory(input);
-  revalidateLeaderboardViews();
+  revalidateLeaderboardViews(locale);
 }
 
 export async function deleteCategoryAction(formData: FormData) {
+  const locale = getLocale(formData);
   await deleteCategory(getString(formData, "categoryId"));
-  revalidateLeaderboardViews();
+  revalidateLeaderboardViews(locale);
 }
 
 export async function createTestCaseAction(formData: FormData) {
+  const locale = getLocale(formData);
   const input = testCaseInputSchema.parse({
     title: getString(formData, "title"),
     categoryId: getString(formData, "categoryId"),
@@ -126,18 +147,20 @@ export async function createTestCaseAction(formData: FormData) {
     }
   }
 
-  revalidateLeaderboardViews();
-  redirect("/admin");
+  revalidateLeaderboardViews(locale);
+  redirect(localizedPath("/admin", locale));
 }
 
 export async function deleteTestCaseAction(formData: FormData) {
+  const locale = getLocale(formData);
   const storageKeys = await deleteTestCase(getString(formData, "testCaseId"));
   const storageAdapter = await storage;
   await Promise.all(storageKeys.map((storageKey) => storageAdapter.delete(storageKey)));
-  revalidateLeaderboardViews();
+  revalidateLeaderboardViews(locale);
 }
 
 export async function createModelOutputAction(formData: FormData) {
+  const locale = getLocale(formData);
   const input = modelOutputInputSchema.parse({
     testCaseId: getString(formData, "testCaseId"),
     modelId: getString(formData, "modelId"),
@@ -176,19 +199,21 @@ export async function createModelOutputAction(formData: FormData) {
     throw error;
   }
 
-  revalidateLeaderboardViews();
-  redirect("/admin");
+  revalidateLeaderboardViews(locale);
+  redirect(localizedPath("/admin", locale));
 }
 
 export async function deleteModelOutputAction(formData: FormData) {
+  const locale = getLocale(formData);
   const storageKey = await deleteModelOutput(getString(formData, "outputId"));
   const storageAdapter = await storage;
   await storageAdapter.delete(storageKey);
-  revalidateLeaderboardViews();
-  revalidatePath("/providers");
+  revalidateLeaderboardViews(locale);
+  revalidateLocalizedPath("/providers", locale);
 }
 
 export async function updateTestCaseAction(formData: FormData) {
+  const locale = getLocale(formData);
   const id = getString(formData, "testCaseId");
   const input = testCaseInputSchema.parse({
     title: getString(formData, "title"),
@@ -224,11 +249,12 @@ export async function updateTestCaseAction(formData: FormData) {
     }
   }
 
-  revalidateLeaderboardViews();
-  redirect("/admin");
+  revalidateLeaderboardViews(locale);
+  redirect(localizedPath("/admin", locale));
 }
 
 export async function updateModelOutputAction(formData: FormData) {
+  const locale = getLocale(formData);
   const outputId = getString(formData, "outputId");
   const input = modelOutputInputSchema.parse({
     testCaseId: getString(formData, "testCaseId"),
@@ -289,7 +315,7 @@ export async function updateModelOutputAction(formData: FormData) {
     throw error;
   }
 
-  revalidateLeaderboardViews();
-  revalidatePath("/providers");
-  redirect("/admin");
+  revalidateLeaderboardViews(locale);
+  revalidateLocalizedPath("/providers", locale);
+  redirect(localizedPath("/admin", locale));
 }

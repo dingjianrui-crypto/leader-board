@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { Link } from "@/i18n/routing";
 import { listCategories, listModelOutputs, listProvidersWithModels, listTestCases } from "@/lib/repositories/leaderboard";
 
 type SearchParams = Promise<{
@@ -7,10 +8,19 @@ type SearchParams = Promise<{
   case?: string;
 }>;
 
-export default async function ComparePage({ searchParams }: { searchParams: SearchParams }) {
-  const params = await searchParams;
-  const selectedCategoryIds = splitParam(params.categories);
-  const selectedModelIds = splitParam(params.models);
+export default async function ComparePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: SearchParams;
+}) {
+  const [{ locale }, query] = await Promise.all([params, searchParams]);
+  setRequestLocale(locale);
+
+  const [t, tCommon] = await Promise.all([getTranslations("compare"), getTranslations("common")]);
+  const selectedCategoryIds = splitParam(query.categories);
+  const selectedModelIds = splitParam(query.models);
 
   const [categories, providers, testCaseList] = await Promise.all([
     listCategories(),
@@ -18,7 +28,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
     listTestCases({ categoryIds: selectedCategoryIds }),
   ]);
 
-  const activeCase = testCaseList.find((item) => item.id === params.case) ?? testCaseList[0];
+  const activeCase = testCaseList.find((item) => item.id === query.case) ?? testCaseList[0];
   const outputs = activeCase
     ? await listModelOutputs({
         testCaseId: activeCase.id,
@@ -30,17 +40,17 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
     <div className="grid gap-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">Compare</p>
-          <h1 className="m-0 text-3xl font-semibold tracking-normal">Compare model video outputs</h1>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">{t("eyebrow")}</p>
+          <h1 className="m-0 text-3xl font-semibold tracking-normal">{t("title")}</h1>
         </div>
         <Link href="/admin" className="btn btn-primary">
-          New test case
+          {t("newTestCase")}
         </Link>
       </header>
 
       <section className="panel grid gap-4">
-        <FilterGroup title="Categories">
-          <FilterLink label="All" active={selectedCategoryIds.length === 0} params={{ models: params.models }} />
+        <FilterGroup title={t("categories")}>
+          <FilterLink label={tCommon("all")} active={selectedCategoryIds.length === 0} params={{ models: query.models }} />
           {categories.map((category) => (
             <FilterLink
               key={category.id}
@@ -48,14 +58,14 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
               active={selectedCategoryIds.includes(category.id)}
               params={{
                 categories: toggle(selectedCategoryIds, category.id),
-                models: params.models,
+                models: query.models,
               }}
             />
           ))}
         </FilterGroup>
 
         <div className="grid gap-3">
-          <p className="text-sm font-semibold text-slate-300">Providers / Models</p>
+          <p className="text-sm font-semibold text-slate-300">{t("providersModels")}</p>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {providers.map((provider) => (
               <div key={provider.id} className="rounded-2xl border border-border bg-[#0e1420] p-3">
@@ -67,7 +77,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
                       label={`${model.name} ${model.version}`}
                       active={selectedModelIds.includes(model.id)}
                       params={{
-                        categories: params.categories,
+                        categories: query.categories,
                         models: toggle(selectedModelIds, model.id),
                       }}
                     />
@@ -81,15 +91,15 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
 
       <section className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="panel grid content-start gap-3">
-          <p className="text-sm font-semibold text-slate-300">Test cases</p>
+          <p className="text-sm font-semibold text-slate-300">{t("testCases")}</p>
           {testCaseList.map((testCase) => (
             <Link
               key={testCase.id}
               href={{
                 pathname: "/compare",
                 query: {
-                  ...(params.categories ? { categories: params.categories } : {}),
-                  ...(params.models ? { models: params.models } : {}),
+                  ...(query.categories ? { categories: query.categories } : {}),
+                  ...(query.models ? { models: query.models } : {}),
                   case: testCase.id,
                 },
               }}
@@ -102,8 +112,8 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
               <strong className="block text-sm">{testCase.title}</strong>
               <span className="mt-2 flex flex-wrap gap-2 text-xs text-muted">
                 <span>{testCase.category.name}</span>
-                <span>{testCase.assets.length} refs</span>
-                <span>{testCase.outputs.length} outputs</span>
+                <span>{testCase.assets.length} {t("refs")}</span>
+                <span>{testCase.outputs.length} {t("outputs")}</span>
               </span>
             </Link>
           ))}
@@ -133,7 +143,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
                     <article key={output.id} className="overflow-hidden rounded-2xl border border-border bg-panel">
                       {output.videoAccessPath === "#" ? (
                         <div className="grid aspect-video place-items-center bg-[#05070d] text-sm text-muted">
-                          Upload video to preview
+                          {t("uploadVideoToPreview")}
                         </div>
                       ) : (
                         <video className="aspect-video w-full" src={output.videoAccessPath} controls preload="metadata" />
@@ -153,7 +163,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
                   ))
                 ) : (
                   <div className="panel lg:col-span-2">
-                    <p className="text-slate-300">No outputs match the selected filters yet.</p>
+                    <p className="text-slate-300">{t("noOutputs")}</p>
                   </div>
                 )}
               </div>
@@ -162,11 +172,11 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
                 <table className="min-w-[800px] w-full border-collapse text-left text-sm">
                   <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
                     <tr>
-                      <th className="p-4">Rank</th>
-                      <th className="p-4">Provider</th>
-                      <th className="p-4">Model</th>
-                      <th className="p-4">GSB</th>
-                      <th className="p-4">Comments</th>
+                      <th className="p-4">{t("rank")}</th>
+                      <th className="p-4">{tCommon("provider")}</th>
+                      <th className="p-4">{tCommon("model")}</th>
+                      <th className="p-4">{tCommon("gsb")}</th>
+                      <th className="p-4">{tCommon("comments")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -187,7 +197,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Sear
             </>
           ) : (
             <div className="panel">
-              <p className="text-slate-300">Create a test case to start comparing outputs.</p>
+              <p className="text-slate-300">{t("createToStart")}</p>
             </div>
           )}
         </div>

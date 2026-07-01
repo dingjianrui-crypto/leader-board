@@ -1,28 +1,33 @@
-import Link from "next/link";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getGsbMatrix } from "@/lib/repositories/leaderboard";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
-  const matrix = await getGsbMatrix();
+export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const [matrix, t, tMetrics, tCommon] = await Promise.all([
+    getGsbMatrix(),
+    getTranslations("gsbPage"),
+    getTranslations("metrics"),
+    getTranslations("common"),
+  ]);
 
   return (
     <div className="grid gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
+      <header>
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">GSB</p>
-          <h1 className="m-0 text-3xl font-semibold tracking-normal">Model GSB by category</h1>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">{t("eyebrow")}</p>
+          <h1 className="m-0 text-3xl font-semibold tracking-normal">{t("title")}</h1>
         </div>
-        <Link href="/admin" className="btn btn-primary">
-          Manage outputs
-        </Link>
       </header>
 
       <section className="grid gap-4 md:grid-cols-3">
-        <SummaryMetric label="Models" value={matrix.models.length} />
-        <SummaryMetric label="Categories" value={matrix.categories.length} />
+        <SummaryMetric label={tMetrics("models")} value={matrix.models.length} />
+        <SummaryMetric label={tMetrics("categories")} value={matrix.categories.length} />
         <SummaryMetric
-          label="Rated cells"
+          label={tMetrics("ratedCells")}
           value={matrix.models.reduce(
             (total, model) =>
               total + matrix.categories.filter((category) => model.cells[category.id].total > 0).length,
@@ -35,7 +40,7 @@ export default async function HomePage() {
         <table className="min-w-[920px] w-full border-collapse text-left text-sm">
           <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
             <tr>
-              <th className="sticky left-0 z-10 bg-panel-warm p-4">Model</th>
+              <th className="sticky left-0 z-10 bg-panel-warm p-4">{tCommon("model")}</th>
               {matrix.categories.map((category) => (
                 <th key={category.id} className="p-4">
                   {category.name}
@@ -55,7 +60,7 @@ export default async function HomePage() {
                   </td>
                   {matrix.categories.map((category) => (
                     <td key={category.id} className="p-4">
-                      <GsbCell cell={model.cells[category.id]} />
+                      <GsbCell cell={model.cells[category.id]} cellCounts={(values) => t("cellCounts", values)} />
                     </td>
                   ))}
                 </tr>
@@ -63,7 +68,7 @@ export default async function HomePage() {
             ) : (
               <tr className="border-t border-border-soft">
                 <td className="p-4 text-slate-300" colSpan={matrix.categories.length + 1}>
-                  Add providers and models to start calculating GSB values.
+                  {t("emptyModels")}
                 </td>
               </tr>
             )}
@@ -71,7 +76,16 @@ export default async function HomePage() {
         </table>
       </div>
 
-      <RadarChart matrix={matrix} />
+      <RadarChart matrix={matrix} labels={{
+        title: t("radarTitle"),
+        description: t("radarDescription"),
+        empty: t("radarEmpty"),
+        legendModels: t("legendModels"),
+        outerRing: t("outerRing"),
+        middleRing: t("middleRing"),
+        centerRing: t("centerRing"),
+        ariaLabel: t("radarAriaLabel"),
+      }} />
     </div>
   );
 }
@@ -87,6 +101,7 @@ function SummaryMetric({ label, value }: { label: string; value: number }) {
 
 function GsbCell({
   cell,
+  cellCounts,
 }: {
   cell: {
     good: number;
@@ -94,6 +109,7 @@ function GsbCell({
     total: number;
     value: number | null;
   };
+  cellCounts: (values: { good: number; bad: number; total: number }) => string;
 }) {
   if (cell.value == null) {
     return <span className="text-muted">-</span>;
@@ -105,7 +121,7 @@ function GsbCell({
         {formatGsb(cell.value)}
       </strong>
       <span className="text-xs text-muted">
-        {cell.good} good / {cell.bad} bad / {cell.total} total
+        {cellCounts({ good: cell.good, bad: cell.bad, total: cell.total })}
       </span>
     </div>
   );
@@ -117,8 +133,19 @@ function formatGsb(value: number) {
 
 function RadarChart({
   matrix,
+  labels,
 }: {
   matrix: Awaited<ReturnType<typeof getGsbMatrix>>;
+  labels: {
+    title: string;
+    description: string;
+    empty: string;
+    legendModels: string;
+    outerRing: string;
+    middleRing: string;
+    centerRing: string;
+    ariaLabel: string;
+  };
 }) {
   const categories = matrix.categories;
   const models = matrix.models.filter((model) =>
@@ -128,9 +155,9 @@ function RadarChart({
   if (categories.length < 3 || models.length === 0) {
     return (
       <section className="panel">
-        <h2 className="m-0 text-xl font-semibold">GSB radar</h2>
+        <h2 className="m-0 text-xl font-semibold">{labels.title}</h2>
         <p className="m-0 mt-3 text-sm text-slate-300">
-          Add at least three categories with rated model outputs to draw the radar chart.
+          {labels.empty}
         </p>
       </section>
     );
@@ -154,9 +181,9 @@ function RadarChart({
   return (
     <section className="panel grid gap-6">
       <div>
-        <h2 className="m-0 text-xl font-semibold">GSB radar</h2>
+        <h2 className="m-0 text-xl font-semibold">{labels.title}</h2>
         <p className="m-0 mt-2 text-sm text-slate-300">
-          Indicators are categories. Each model line plots its category GSB value.
+          {labels.description}
         </p>
       </div>
 
@@ -168,7 +195,7 @@ function RadarChart({
             height={size}
             viewBox={`0 0 ${size} ${size}`}
             role="img"
-            aria-label="Radar chart comparing model GSB values by category"
+            aria-label={labels.ariaLabel}
           >
             {rings.map((ring) => (
               <polygon
@@ -237,7 +264,7 @@ function RadarChart({
         </div>
 
         <div className="grid content-start gap-3">
-          <p className="m-0 text-sm font-semibold text-slate-300">Models</p>
+          <p className="m-0 text-sm font-semibold text-slate-300">{labels.legendModels}</p>
           <div className="grid gap-2">
             {models.map((model, index) => (
               <div key={model.id} className="flex items-center gap-3 text-sm">
@@ -252,9 +279,9 @@ function RadarChart({
             ))}
           </div>
           <div className="mt-3 grid gap-1 border-t border-border-soft pt-3 text-xs text-muted">
-            <span>Outer ring: 100%</span>
-            <span>Middle ring: 0%</span>
-            <span>Center: -100%</span>
+            <span>{labels.outerRing}</span>
+            <span>{labels.middleRing}</span>
+            <span>{labels.centerRing}</span>
           </div>
         </div>
       </div>

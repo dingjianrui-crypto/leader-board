@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import {
   createCategoryAction,
   createModelOutputAction,
@@ -15,19 +15,30 @@ import {
   listProvidersWithModels,
   listTestCases,
 } from "@/lib/repositories/leaderboard";
+import { Link } from "@/i18n/routing";
 
 type SearchParams = Promise<{
   editCase?: string;
   editOutput?: string;
 }>;
 
-export default async function AdminPage({ searchParams }: { searchParams: SearchParams }) {
-  const params = await searchParams;
-  const [categories, providers, testCases, outputs] = await Promise.all([
+export default async function AdminPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: SearchParams;
+}) {
+  const [{ locale }, query] = await Promise.all([params, searchParams]);
+  setRequestLocale(locale);
+
+  const [categories, providers, testCases, outputs, t, tCommon] = await Promise.all([
     listCategories(),
     listProvidersWithModels(),
     listTestCases(),
     listModelOutputs(),
+    getTranslations("admin"),
+    getTranslations("common"),
   ]);
 
   const models = providers.flatMap((provider) =>
@@ -36,32 +47,33 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
       providerName: provider.name,
     })),
   );
-  const editingTestCase = testCases.find((testCase) => testCase.id === params.editCase);
-  const editingOutput = outputs.find((output) => output.id === params.editOutput);
+  const editingTestCase = testCases.find((testCase) => testCase.id === query.editCase);
+  const editingOutput = outputs.find((output) => output.id === query.editOutput);
 
   return (
     <div className="grid gap-8">
       <header>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">Admin workspace</p>
-        <h1 className="m-0 text-3xl font-semibold">Manage benchmark data and offline outputs</h1>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">{t("eyebrow")}</p>
+        <h1 className="m-0 text-3xl font-semibold">{t("title")}</h1>
         <p className="max-w-4xl text-slate-300">
-          Create categories first, create test cases with prompt inputs, then upload finished model videos with manual scores.
+          {t("description")}
         </p>
       </header>
 
       <section className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
         <form action={createCategoryAction} className="panel grid content-start gap-4">
-          <h2 className="text-xl font-semibold">Manage categories</h2>
+          <input type="hidden" name="locale" value={locale} />
+          <h2 className="text-xl font-semibold">{t("manageCategories")}</h2>
           <label className="field">
-            Category name
-            <input className="input" name="name" placeholder="Scene transition" required />
+            {t("categoryName")}
+            <input className="input" name="name" placeholder={t("categoryPlaceholder")} required />
           </label>
           <label className="field">
-            Category description
+            {t("categoryDescription")}
             <textarea className="input min-h-28" name="description" required />
           </label>
           <button className="btn btn-primary" type="submit">
-            Save category
+            {t("saveCategory")}
           </button>
         </form>
 
@@ -69,12 +81,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
           <table className="min-w-[760px] w-full border-collapse text-left text-sm">
             <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
               <tr>
-                <th className="p-4">Category</th>
-                <th className="p-4">Description</th>
-                <th className="p-4">Test cases</th>
-                <th className="p-4">Good</th>
-                <th className="p-4">Bad</th>
-                <th className="p-4">Action</th>
+                <th className="p-4">{t("category")}</th>
+                <th className="p-4">{t("descriptionColumn")}</th>
+                <th className="p-4">{t("testCase")}</th>
+                <th className="p-4">{t("good")}</th>
+                <th className="p-4">{t("bad")}</th>
+                <th className="p-4">{tCommon("action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -88,13 +100,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
                   <td className="p-4">
                     {category.testCaseCount === 0 ? (
                       <form action={deleteCategoryAction}>
+                        <input type="hidden" name="locale" value={locale} />
                         <input type="hidden" name="categoryId" value={category.id} />
                         <button className="btn border-rose-400/40 text-rose-200 hover:bg-rose-500/10" type="submit">
-                          Delete
+                          {tCommon("delete")}
                         </button>
                       </form>
                     ) : (
-                      <span className="status-pill text-muted">Delete</span>
+                      <span className="status-pill text-muted">{tCommon("delete")}</span>
                     )}
                   </td>
                 </tr>
@@ -111,29 +124,30 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
           action={editingTestCase ? updateTestCaseAction : createTestCaseAction}
           className="panel grid content-start gap-4"
         >
+          <input type="hidden" name="locale" value={locale} />
           {editingTestCase ? <input type="hidden" name="testCaseId" value={editingTestCase.id} /> : null}
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold">{editingTestCase ? "Edit test case" : "Create test case"}</h2>
+            <h2 className="text-xl font-semibold">{editingTestCase ? t("editTestCase") : t("createTestCase")}</h2>
             {editingTestCase ? (
               <Link href="/admin" className="btn">
-                Cancel
+                {tCommon("cancel")}
               </Link>
             ) : null}
           </div>
           <label className="field">
-            Test case title
+            {t("testCaseTitle")}
             <input
               className="input"
               name="title"
-              placeholder="Studio dolly shot with product reveal"
+              placeholder={t("testCasePlaceholder")}
               defaultValue={editingTestCase?.title}
               required
             />
           </label>
           <label className="field">
-            Category
+            {t("category")}
             <select className="input" name="categoryId" defaultValue={editingTestCase?.categoryId ?? ""} required>
-              <option value="">Select category</option>
+              <option value="">{t("selectCategory")}</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
@@ -142,24 +156,24 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
             </select>
           </label>
           <label className="field">
-            Text prompt
+            {t("textPrompt")}
             <textarea className="input min-h-28" name="prompt" defaultValue={editingTestCase?.prompt} required />
           </label>
           <label className="field">
-            Description
+            {t("description")}
             <textarea className="input min-h-24" name="description" defaultValue={editingTestCase?.description} required />
           </label>
           <label className="field">
-            {editingTestCase ? "Add reference assets" : "Reference assets"}
+            {editingTestCase ? t("addReferenceAssets") : t("referenceAssets")}
             <input className="input" name="assets" type="file" multiple />
           </label>
           <p className="text-xs text-muted">
             {editingTestCase
-              ? `${editingTestCase.assets.length} existing files will be kept. New uploads are appended.`
-              : "Images, audio, and videos are supported. Each file must be 50MB or smaller."}
+              ? t("existingAssetsHelp", { count: editingTestCase.assets.length })
+              : t("referenceAssetsHelp")}
           </p>
           <button className="btn btn-primary" type="submit">
-            {editingTestCase ? "Save changes" : "Create test case"}
+            {editingTestCase ? tCommon("saveChanges") : t("createTestCase")}
           </button>
         </form>
 
@@ -167,12 +181,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
           <table className="min-w-[920px] w-full border-collapse text-left text-sm">
             <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
               <tr>
-                <th className="p-4">Test case</th>
-                <th className="p-4">Category</th>
-                <th className="p-4">Reference assets</th>
-                <th className="p-4">Outputs</th>
-                <th className="p-4">Status</th>
-                <th className="p-4">Action</th>
+                <th className="p-4">{t("testCase")}</th>
+                <th className="p-4">{t("category")}</th>
+                <th className="p-4">{t("referenceAssets")}</th>
+                <th className="p-4">{t("outputs")}</th>
+                <th className="p-4">{t("status")}</th>
+                <th className="p-4">{tCommon("action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -180,22 +194,23 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
                 <tr key={testCase.id} className="border-t border-border-soft">
                   <td className="p-4 font-semibold">{testCase.title}</td>
                   <td className="p-4">{testCase.category.name}</td>
-                  <td className="p-4">{testCase.assets.length} files</td>
-                  <td className="p-4">{testCase.outputs.length} uploaded</td>
+                  <td className="p-4">{t("filesCount", { count: testCase.assets.length })}</td>
+                  <td className="p-4">{t("uploadedCount", { count: testCase.outputs.length })}</td>
                   <td className="p-4">
                     <span className={`status-pill ${testCase.outputs.length ? "text-emerald-300" : "text-amber-300"}`}>
-                      {testCase.outputs.length ? "ready" : "needs outputs"}
+                      {testCase.outputs.length ? t("ready") : t("needsOutputs")}
                     </span>
                   </td>
                   <td className="p-4">
                     <div className="flex flex-wrap gap-2">
                       <Link href={`/admin?editCase=${testCase.id}#test-case-form`} className="btn">
-                        Edit
+                        {tCommon("edit")}
                       </Link>
                       <form action={deleteTestCaseAction}>
+                        <input type="hidden" name="locale" value={locale} />
                         <input type="hidden" name="testCaseId" value={testCase.id} />
                         <button className="btn border-rose-400/40 text-rose-200 hover:bg-rose-500/10" type="submit">
-                          Delete
+                          {tCommon("delete")}
                         </button>
                       </form>
                     </div>
@@ -214,19 +229,20 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
           action={editingOutput ? updateModelOutputAction : createModelOutputAction}
           className="panel grid content-start gap-4"
         >
+          <input type="hidden" name="locale" value={locale} />
           {editingOutput ? <input type="hidden" name="outputId" value={editingOutput.id} /> : null}
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold">{editingOutput ? "Edit model output" : "Upload model output"}</h2>
+            <h2 className="text-xl font-semibold">{editingOutput ? t("editModelOutput") : t("uploadModelOutput")}</h2>
             {editingOutput ? (
               <Link href="/admin" className="btn">
-                Cancel
+                {tCommon("cancel")}
               </Link>
             ) : null}
           </div>
           <label className="field">
-            Test case
+            {t("testCase")}
             <select className="input" name="testCaseId" defaultValue={editingOutput?.testCaseId ?? ""} required>
-              <option value="">Select test case</option>
+              <option value="">{t("selectTestCase")}</option>
               {testCases.map((testCase) => (
                 <option key={testCase.id} value={testCase.id}>
                   {testCase.title}
@@ -235,9 +251,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
             </select>
           </label>
           <label className="field">
-            Model
+            {tCommon("model")}
             <select className="input" name="modelId" defaultValue={editingOutput?.modelId ?? ""} required>
-              <option value="">Select model</option>
+              <option value="">{t("selectModel")}</option>
               {models.map((model) => (
                 <option key={model.id} value={model.id}>
                   {model.providerName} / {model.name} / {model.version}
@@ -246,7 +262,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
             </select>
           </label>
           <label className="field">
-            {editingOutput ? "Replace output video" : "Output video"}
+            {editingOutput ? t("replaceOutputVideo") : t("outputVideo")}
             <input
               className="input"
               name="video"
@@ -256,10 +272,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
             />
           </label>
           {editingOutput ? (
-            <p className="text-xs text-muted">Current file: {editingOutput.videoFilename}. Leave empty to keep it.</p>
+            <p className="text-xs text-muted">{t("currentFile", { filename: editingOutput.videoFilename })}</p>
           ) : null}
           <label className="field">
-            GSB
+            {tCommon("gsb")}
             <select className="input" name="gsbValue" defaultValue={editingOutput?.gsbValue ?? "normal"} required>
               <option value="best">best</option>
               <option value="samebest">samebest</option>
@@ -270,17 +286,17 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
             </select>
           </label>
           <label className="field">
-            Comments
+            {tCommon("comments")}
             <textarea
               className="input min-h-24"
               name="userComments"
               maxLength={1000}
-              placeholder="Optional notes"
+              placeholder={t("commentsPlaceholder")}
               defaultValue={editingOutput?.userComments}
             />
           </label>
           <button className="btn btn-primary" type="submit">
-            {editingOutput ? "Save changes" : "Upload output"}
+            {editingOutput ? tCommon("saveChanges") : t("uploadOutput")}
           </button>
         </form>
 
@@ -288,12 +304,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
           <table className="min-w-[980px] w-full border-collapse text-left text-sm">
             <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
               <tr>
-                <th className="p-4">Output</th>
-                <th className="p-4">Test case</th>
-                <th className="p-4">Model</th>
-                <th className="p-4">GSB</th>
-                <th className="p-4">Comments</th>
-                <th className="p-4">Action</th>
+                <th className="p-4">{t("output")}</th>
+                <th className="p-4">{t("testCase")}</th>
+                <th className="p-4">{tCommon("model")}</th>
+                <th className="p-4">{tCommon("gsb")}</th>
+                <th className="p-4">{tCommon("comments")}</th>
+                <th className="p-4">{tCommon("action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -311,12 +327,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
                   <td className="p-4">
                     <div className="flex flex-wrap gap-2">
                       <Link href={`/admin?editOutput=${output.id}#model-output-form`} className="btn">
-                        Edit
+                        {tCommon("edit")}
                       </Link>
                       <form action={deleteModelOutputAction}>
+                        <input type="hidden" name="locale" value={locale} />
                         <input type="hidden" name="outputId" value={output.id} />
                         <button className="btn border-rose-400/40 text-rose-200 hover:bg-rose-500/10" type="submit">
-                          Delete
+                          {tCommon("delete")}
                         </button>
                       </form>
                     </div>

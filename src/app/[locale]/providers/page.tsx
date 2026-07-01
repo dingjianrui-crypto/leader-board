@@ -4,41 +4,50 @@ import {
   deleteModelAction,
   deleteProviderAction,
 } from "@/app/actions";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { listProvidersWithModels } from "@/lib/repositories/leaderboard";
 
-export default async function ProvidersPage() {
-  const providers = await listProvidersWithModels();
+export default async function ProvidersPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const [providers, t, tCommon] = await Promise.all([
+    listProvidersWithModels(),
+    getTranslations("providers"),
+    getTranslations("common"),
+  ]);
 
   return (
     <div className="grid gap-6">
       <header>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">Provider registry</p>
-        <h1 className="m-0 text-3xl font-semibold">Manage providers and models</h1>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">{t("eyebrow")}</p>
+        <h1 className="m-0 text-3xl font-semibold">{t("title")}</h1>
         <p className="max-w-3xl text-slate-300">
-          Saved model records are available immediately for Admin uploads and Compare filters.
-          Models can be deleted only before outputs are uploaded. Providers can be deleted only after all models are removed.
+          {t("description")}
         </p>
       </header>
 
       <section className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
         <div className="grid content-start gap-6">
           <form action={createProviderAction} className="panel grid gap-4">
-            <h2 className="text-xl font-semibold">Create provider</h2>
+            <input type="hidden" name="locale" value={locale} />
+            <h2 className="text-xl font-semibold">{t("createProvider")}</h2>
             <label className="field">
-              Provider name
-              <input className="input" name="name" placeholder="Provider E" required />
+              {t("providerName")}
+              <input className="input" name="name" placeholder={t("providerPlaceholder")} required />
             </label>
             <button className="btn btn-primary" type="submit">
-              Save provider
+              {t("saveProvider")}
             </button>
           </form>
 
           <form action={createModelAction} className="panel grid gap-4">
-            <h2 className="text-xl font-semibold">Create model</h2>
+            <input type="hidden" name="locale" value={locale} />
+            <h2 className="text-xl font-semibold">{t("createModel")}</h2>
             <label className="field">
-              Provider
+              {tCommon("provider")}
               <select className="input" name="providerId" required>
-                <option value="">Select provider</option>
+                <option value="">{t("selectProvider")}</option>
                 {providers.map((provider) => (
                   <option key={provider.id} value={provider.id}>
                     {provider.name}
@@ -47,15 +56,15 @@ export default async function ProvidersPage() {
               </select>
             </label>
             <label className="field">
-              Model name
-              <input className="input" name="name" placeholder="Model E-1" required />
+              {t("modelName")}
+              <input className="input" name="name" placeholder={t("modelPlaceholder")} required />
             </label>
             <label className="field">
-              Version
-              <input className="input" name="version" placeholder="2026.06" required />
+              {tCommon("version")}
+              <input className="input" name="version" placeholder={t("versionPlaceholder")} required />
             </label>
             <button className="btn btn-primary" type="submit">
-              Save model record
+              {t("saveModel")}
             </button>
           </form>
         </div>
@@ -65,9 +74,9 @@ export default async function ProvidersPage() {
             <table className="min-w-[620px] w-full border-collapse text-left text-sm">
               <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
                 <tr>
-                  <th className="p-4">Provider</th>
-                  <th className="p-4">Models</th>
-                  <th className="p-4">Action</th>
+                  <th className="p-4">{tCommon("provider")}</th>
+                  <th className="p-4">{t("models")}</th>
+                  <th className="p-4">{tCommon("action")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -78,13 +87,14 @@ export default async function ProvidersPage() {
                     <td className="p-4">
                       {provider.models.length === 0 ? (
                         <form action={deleteProviderAction}>
+                          <input type="hidden" name="locale" value={locale} />
                           <input type="hidden" name="providerId" value={provider.id} />
                           <button className="btn border-rose-400/40 text-rose-200 hover:bg-rose-500/10" type="submit">
-                            Delete
+                            {tCommon("delete")}
                           </button>
                         </form>
                       ) : (
-                        <span className="status-pill text-muted">Delete</span>
+                        <span className="status-pill text-muted">{tCommon("delete")}</span>
                       )}
                     </td>
                   </tr>
@@ -97,11 +107,11 @@ export default async function ProvidersPage() {
             <table className="min-w-[860px] w-full border-collapse text-left text-sm">
               <thead className="bg-panel-warm text-xs uppercase tracking-[0.14em] text-muted">
                 <tr>
-                  <th className="p-4">Provider</th>
-                  <th className="p-4">Model</th>
-                  <th className="p-4">Version</th>
-                  <th className="p-4">Uploaded outputs</th>
-                  <th className="p-4">Action</th>
+                  <th className="p-4">{tCommon("provider")}</th>
+                  <th className="p-4">{tCommon("model")}</th>
+                  <th className="p-4">{tCommon("version")}</th>
+                  <th className="p-4">{t("uploadedOutputs")}</th>
+                  <th className="p-4">{tCommon("action")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -115,13 +125,14 @@ export default async function ProvidersPage() {
                       <td className="p-4">
                         {(model.outputs?.length ?? 0) === 0 ? (
                           <form action={deleteModelAction}>
+                            <input type="hidden" name="locale" value={locale} />
                             <input type="hidden" name="modelId" value={model.id} />
                             <button className="btn border-rose-400/40 text-rose-200 hover:bg-rose-500/10" type="submit">
-                              Delete
+                              {tCommon("delete")}
                             </button>
                           </form>
                         ) : (
-                          <span className="status-pill text-muted">Delete</span>
+                          <span className="status-pill text-muted">{tCommon("delete")}</span>
                         )}
                       </td>
                     </tr>
